@@ -1,0 +1,22 @@
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Cloudflare Worker 本地产物
+.wrangler/
+.mf/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# 敏感配置
+.dev.vars
+.env
+.env.local
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

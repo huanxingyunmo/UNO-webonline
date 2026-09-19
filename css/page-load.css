@@ -1,0 +1,53 @@
+/* 页面加载效果 - 用于未引用 common.css 的页面 */
+.page-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light), var(--primary));
+    background-size: 200% 100%;
+    z-index: 99999;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 50%, transparent);
+}
+
+.page-loading-bar.loading {
+    width: 70%;
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page-loading-bar.finishing {
+    width: 100%;
+    transition: width 0.3s ease;
+}
+
+.page-loading-bar.done {
+    opacity: 0;
+    transition: opacity 0.4s ease 0.1s;
+}
+
+/* 内容元素淡入动画（opacity 50%→100% + 轻微上移，非线性缓动，≤1s，所有元素同步） */
+@keyframes page-fadein-anim {
+    from {
+        opacity: 0.5;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-fadein {
+    animation: page-fadein-anim 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 减少动画偏好：禁用动画，直接显示 */
+@media (prefers-reduced-motion: reduce) {
+    .page-fadein {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}

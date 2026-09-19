@@ -1,0 +1,562 @@
+/* =====================================================
+   公共基础样式 - 全站通用
+   包含：字体、重置、背景层、通用组件、CSS变量
+   ===================================================== */
+
+/* -------------------- CSS 变量 -------------------- */
+/* 主题变量已拆分到 /css/theme-light.css 与 /css/theme-dark.css。 */
+
+/* -------------------- 字体 -------------------- */
+@font-face {
+    font-family: 'Kosugi Maru';
+    src: url('../assets/fonts/main-font.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* -------------------- 基础重置 -------------------- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    overflow-x: hidden;
+}
+
+body {
+    font-family: 'Kosugi Maru', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    min-height: 100vh;
+    min-width: 100vw;
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+    background-color: rgb(249, 250, 251);
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button {
+    font-family: inherit;
+}
+
+/* -------------------- 背景层 -------------------- */
+.beijing {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: -3;
+    pointer-events: none;
+}
+
+.background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.background::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-overlay);
+    z-index: -2;
+    transition: background-color 0.3s ease;
+}
+
+.background::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-page);
+    z-index: -1;
+    transition: background-color 0.3s ease;
+}
+
+/* -------------------- 通用工具类 -------------------- */
+.hidden {
+    display: none !important;
+}
+
+/* -------------------- 页面头部 -------------------- */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    background-color: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 2px solid var(--border-light);
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.back-link svg {
+    width: 18px;
+    height: 18px;
+}
+
+.back-link:hover {
+    color: var(--primary-dark);
+    background-color: var(--primary-bg);
+}
+
+/* -------------------- 通用按钮 -------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: #fff;
+}
+
+.btn-primary:hover {
+    box-shadow: var(--shadow-primary);
+}
+
+.btn-danger {
+    background-color: var(--danger);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-dark);
+}
+
+.btn-secondary {
+    background-color: rgba(243, 244, 246, 1);
+    color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(229, 231, 235, 1);
+}
+
+/* 图标按钮 */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-icon-edit {
+    background-color: var(--primary-bg);
+    color: var(--primary);
+}
+
+.btn-icon-edit:hover {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.btn-icon-delete {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+}
+
+.btn-icon-delete:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* -------------------- 通用表单 -------------------- */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    background-color: var(--bg-input);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+/* -------------------- 通用卡片容器 -------------------- */
+.card {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+/* -------------------- 通用表格 -------------------- */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead {
+    background-color: var(--primary-bg);
+}
+
+.data-table th {
+    padding: 14px 16px;
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 2px solid var(--border-light);
+}
+
+.data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-default);
+    vertical-align: middle;
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--bg-hover);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* -------------------- 通用弹窗 -------------------- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(10, 10, 10, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.modal-content {
+    background-color: var(--bg-card-solid);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-small {
+    max-width: 400px;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-radius: var(--radius-md);
+    transition: background-color 0.2s ease;
+}
+
+.modal-close:hover {
+    background-color: var(--bg-hover);
+}
+
+.modal-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-default);
+}
+
+.modal-text {
+    padding: 20px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* -------------------- 通用空状态/加载 -------------------- */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    color: var(--text-light);
+    margin-bottom: 16px;
+}
+
+.empty-state p {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid color-mix(in srgb, var(--primary) 20%, transparent);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* -------------------- 页面加载效果 -------------------- */
+/* 顶部进度条 */
+.page-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light), var(--primary));
+    background-size: 200% 100%;
+    z-index: 99999;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 50%, transparent);
+}
+
+.page-loading-bar.loading {
+    width: 70%;
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: page-loading-shimmer 1.5s linear infinite;
+}
+
+.page-loading-bar.finishing {
+    width: 100%;
+    transition: width 0.3s ease;
+    animation: none;
+}
+
+.page-loading-bar.done {
+    opacity: 0;
+    transition: opacity 0.4s ease 0.1s;
+    animation: none;
+}
+
+@keyframes page-loading-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 内容元素入场/退场动画（统一：opacity 50%→100% + 轻微上移，非线性缓动，≤1s） */
+
+/* 加载阶段立即隐藏 body 下所有主要内容，避免脚本标记前的闪烁 */
+html[data-page-state="loading"] body > :not(.beijing):not(.background):not(.dock-nav):not(.page-loading-bar):not(script):not(style):not(link) {
+    opacity: 0;
+}
+
+.page-transition-target {
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-page-state="revealing"] .page-transition-target {
+    opacity: 0.5;
+    transform: translateY(16px);
+}
+
+html[data-page-state="revealing"] .page-transition-target.is-revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+html[data-page-state="ready"] .page-transition-target {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+html[data-page-state="leaving"] .page-transition-target {
+    opacity: 0;
+    transform: translateY(-16px);
+    transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 保留旧类名兼容，避免外部依赖 page-fadein 的页面失效 */
+@keyframes page-fadein-anim {
+    from {
+        opacity: 0.5;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-fadein {
+    animation: page-fadein-anim 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* -------------------- 减少动画偏好 -------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .page-loading-bar,
+    .page-loading-bar.loading,
+    .page-loading-bar.finishing {
+        animation: none !important;
+        transition: width 0.15s ease !important;
+    }
+
+    .page-loading-bar.done {
+        transition: opacity 0.1s ease !important;
+    }
+
+    .page-fadein {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    html[data-page-state="loading"] body > :not(.beijing):not(.background):not(.dock-nav):not(.page-loading-bar):not(script):not(style):not(link),
+    .page-transition-target,
+    html[data-page-state="revealing"] .page-transition-target,
+    html[data-page-state="revealing"] .page-transition-target.is-revealed,
+    html[data-page-state="ready"] .page-transition-target,
+    html[data-page-state="leaving"] .page-transition-target {
+        transform: none !important;
+        transition: opacity 0.15s ease !important;
+    }
+}
+
+/* -------------------- 响应式 -------------------- */
+@media (max-width: 768px) {
+    .page-header {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .page-title {
+        order: -1;
+        width: 100%;
+        margin-bottom: 4px;
+    }
+
+    .modal-content {
+        max-width: 100%;
+        margin: 10px;
+    }
+}

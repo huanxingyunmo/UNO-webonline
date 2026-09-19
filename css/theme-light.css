@@ -1,0 +1,71 @@
+/* =====================================================
+   全站亮色主题变量
+   说明：仅保存亮色调色板与主题级变量；页面布局仍在各自 CSS 中维护。
+   ===================================================== */
+
+:root,
+html[data-theme="light"] {
+  color-scheme: light;
+
+  /* 主色调 - 蓝色系（common.css 组件使用） */
+  --primary: #2563EB;
+  --primary-dark: #1D4ED8;
+  --primary-light: #60A5FA;
+  --primary-bg: rgba(37, 99, 235, 0.1);
+
+  /* legacy / article style.css 变量 */
+  --primary-color: #2563EB;
+  --secondary-color: #ec4899;
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --bg-primary: rgba(255, 255, 255, 0.9);
+  --bg-secondary: rgba(248, 248, 252, 0.95);
+  --border-color: rgba(0, 0, 0, 0.1);
+  --moboxsvg-color:rgb(0, 0, 0);
+
+  /* 功能色 */
+  --danger: #EF4444;
+  --danger-dark: #DC2626;
+  --success: #10B981;
+  --warning: #F59E0B;
+
+  /* 文字色 */
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #6B7280;
+  --text-light: #9CA3AF;
+
+  /* 背景色 */
+  --bg-page: rgba(249, 250, 251, 0.75);
+  --bg-overlay: rgba(255, 255, 255, 0.497);
+  --bg-mask: rgba(0, 0, 0, 0.4);
+  --bg-card: rgba(255, 255, 255, 0.72);
+  --bg-card-glass: rgb(255, 255, 255);
+  --bg-card-solid: rgba(255, 255, 255, 0.95);
+  --bg-input: rgba(255, 255, 255, 0.8);
+  --bg-hover: rgba(37, 99, 235, 0.05);
+  --bg-hover-strong: rgba(37, 99, 235, 0.10);
+
+  /* 强调色 */
+  --accent-blue: #60A5FA;
+  --accent-purple: #2563EB;
+  --accent-cyan: #25d9e7;
+
+  /* 边框 */
+  --border-light: rgba(226, 228, 228, 0.788);
+  --border-default: #E5E7EB;
+  --border-focus: rgba(37, 99, 235, 1);
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --shadow-primary: 0 4px 12px rgba(37, 99, 235, 0.35);
+
+  /* 间距/圆角 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}

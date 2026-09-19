@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <script src="js/theme-preinit.js?v=1"></script>
+    <link rel="stylesheet" href="css/theme-light.css?v=4">
+    <link rel="stylesheet" href="css/theme-dark.css?v=7">
+<meta charset="UTF-8">
+<script src="js/page-load.js?v=6"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNO 多人在线卡牌游戏</title>
+<link rel="icon" type="image/png" href="assets/favicon.jpg">
+<link rel="stylesheet" href="css/common.css?v=9">
+<link rel="stylesheet" href="css/uno.css?v=2">
+</head>
+<body>
+<div class="beijing"></div>
+<div class="background"></div>
+
+<a href="creative.html" class="page-back">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="19" y1="12" x2="5" y2="12"/>
+    <polyline points="12 19 5 12 12 5"/>
+  </svg>
+  <span>返回介绍页</span>
+</a>
+
+<!-- ============ START SCREEN ============ -->
+<div id="startScreen" class="screen active">
+  <div class="logo-container">
+    <div class="logo-uno">UNO</div>
+    <div class="logo-sub">多人在线卡牌游戏</div>
+  </div>
+  <div class="start-buttons">
+    <button class="btn btn-primary" onclick="showCreateScreen()">创建房间</button>
+    <button class="btn btn-secondary" onclick="showJoinScreen()">加入房间</button>
+  </div>
+  <div class="start-hint" id="startHint"></div>
+</div>
+
+<!-- ============ CREATE SCREEN ============ -->
+<div id="createScreen" class="screen">
+  <div class="uno-card">
+    <div class="uno-card-title">创建房间</div>
+    <div class="uno-form-group">
+      <label>你的昵称</label>
+      <input type="text" id="createNickname" placeholder="输入昵称" maxlength="10">
+      <div class="uno-form-hint" id="createNicknameHint" style="display:none">使用注册用户名，无法修改</div>
+    </div>
+    <div class="uno-card-actions">
+      <button class="btn btn-primary" onclick="createRoom()">创建</button>
+      <button class="btn btn-secondary" onclick="showStartScreen()">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ JOIN SCREEN ============ -->
+<div id="joinScreen" class="screen">
+  <div class="uno-card">
+    <div class="uno-card-title">加入房间</div>
+    <div class="uno-form-group">
+      <label>房间代码</label>
+      <input type="text" id="joinRoomCode" placeholder="输入6位房间代码" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:1.2rem">
+    </div>
+    <div class="uno-form-group">
+      <label>你的昵称</label>
+      <input type="text" id="joinNickname" placeholder="输入昵称" maxlength="10">
+      <div class="uno-form-hint" id="joinNicknameHint" style="display:none">使用注册用户名</div>
+    </div>
+    <div class="uno-card-actions">
+      <button class="btn btn-primary" onclick="joinRoom()">加入</button>
+      <button class="btn btn-secondary" onclick="showStartScreen()">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOBBY SCREEN ============ -->
+<div id="lobbyScreen" class="screen">
+  <div class="uno-card">
+    <div class="uno-card-title">游戏大厅</div>
+    <div class="lobby-room-code" id="lobbyRoomCode">------</div>
+    <div class="lobby-hint">将房间代码分享给好友即可加入</div>
+    <div class="lobby-hint">加入房间无需注册</div>
+    <button class="btn btn-copy-link" style="width:100%;margin-bottom:12px" onclick="copyRoomLink()">
+      <span id="copyLinkText">复制房间链接</span>
+    </button>
+    <div class="lobby-players" id="lobbyPlayers"></div>
+    <div class="uno-card-actions">
+      <button class="btn btn-primary" id="startGameBtn" onclick="startGame()" disabled>开始游戏 (至少2人)</button>
+      <button class="btn btn-danger" onclick="leaveLobby()">离开房间</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ GAME SCREEN ============ -->
+<div id="gameScreen" class="screen">
+  <div class="game-topbar">
+    <a href="creative.html" class="game-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"/>
+        <polyline points="12 19 5 12 12 5"/>
+      </svg>
+      <span>首页</span>
+    </a>
+    <div class="game-info">
+      <div class="game-info-item">
+        <span>方向:</span>
+        <span class="direction-indicator" id="directionIndicator">&#10227;</span>
+      </div>
+      <div class="game-info-item">
+        <span>当前颜色:</span>
+        <span class="current-color-dot" id="currentColorDot"></span>
+      </div>
+      <div class="game-info-item" id="turnInfo">等待中...</div>
+    </div>
+    <div class="game-topbar-spacer">
+      <div class="last-action" id="lastAction"></div>
+      <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px" onclick="leaveGame()">退出</button>
+    </div>
+  </div>
+
+  <div id="spectatorBanner" class="spectator-banner" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    <span>观战模式</span>
+  </div>
+
+  <div class="opponents-area" id="opponentsArea"></div>
+
+  <div class="center-area">
+    <div class="pile">
+      <div class="draw-pile" id="drawPile" onclick="drawCard()">
+        <div class="card card-back"></div>
+        <div class="card card-back"></div>
+        <div class="card card-back"></div>
+      </div>
+      <div class="pile-label">摸牌堆 (<span id="drawPileCount">0</span>)</div>
+    </div>
+    <div class="pile">
+      <div class="discard-pile" id="discardPile"></div>
+      <div class="pile-label">弃牌堆</div>
+    </div>
+  </div>
+
+  <div class="player-area" id="playerArea">
+    <div id="specHandNav" class="spec-hand-nav" style="display:none">
+      <button class="spec-nav-btn" onclick="specNavPrev()" id="specNavPrevBtn">&#9664;</button>
+      <span class="spec-nav-label" id="specNavLabel">玩家</span>
+      <button class="spec-nav-btn" onclick="specNavNext()" id="specNavNextBtn">&#9654;</button>
+    </div>
+    <div class="player-hand-wrapper">
+      <div class="player-hand" id="playerHand"></div>
+    </div>
+    <div class="player-actions">
+      <button class="btn btn-uno" id="unoBtn" onclick="callUno()" disabled>UNO!</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ END SCREEN ============ -->
+<div id="endScreen" class="screen">
+  <div class="uno-card" style="text-align:center">
+    <div class="uno-card-title" id="endTitle">游戏结束</div>
+    <div class="end-winner" id="endWinner"></div>
+    <div class="end-scores" id="endScores"></div>
+    <div class="uno-card-actions">
+      <button class="btn btn-primary" onclick="playAgain()">再来一局</button>
+      <button class="btn btn-secondary" onclick="backToStart()">返回首页</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ COLOR MODAL ============ -->
+<div class="color-modal-overlay" id="colorModal">
+  <div class="color-modal">
+    <div class="color-modal-title">选择颜色</div>
+    <div class="color-choices">
+      <button class="color-choice color-choice-red" onclick="chooseColor('red')">红色</button>
+      <button class="color-choice color-choice-yellow" onclick="chooseColor('yellow')">黄色</button>
+      <button class="color-choice color-choice-green" onclick="chooseColor('green')">绿色</button>
+      <button class="color-choice color-choice-blue" onclick="chooseColor('blue')">蓝色</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SPECTATOR SIDEBAR ============ -->
+<div class="spectator-sidebar" id="spectatorSidebar">
+  <div class="spectator-sidebar-header">
+    <div class="spectator-sidebar-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      观战面板
+    </div>
+    <button class="spectator-sidebar-close" onclick="collapseSpectatorSidebar()" title="收起面板">&#9664;</button>
+  </div>
+  <div class="spectator-sidebar-body" id="spectatorSidebarBody"></div>
+</div>
+
+<!-- 侧边栏展开按钮 -->
+<div class="spec-sidebar-open-btn" id="specSidebarOpenBtn" onclick="expandSpectatorSidebar()" title="展开观战面板">&#9654;</div>
+
+<!-- ============ TOAST CONTAINER ============ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============ CONNECTION STATUS ============ -->
+<div class="connection-status" id="connectionStatus">
+  <span class="status-dot disconnected"></span>
+  <span>未连接</span>
+</div>
+
+<!-- ============ SPECTATOR VIEW TOGGLE (mobile) ============ -->
+<button class="spec-view-toggle" id="specViewToggle" onclick="toggleSpectatorSidebar()" style="display:none">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  观战
+</button>
+
+<script src="js/uno.js?v=2"></script>
+<script src="js/theme.js"></script>
+</body>
+</html>
