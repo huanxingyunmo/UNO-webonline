@@ -34,7 +34,7 @@ let loggedInUser = null; // 已登录用户名（null=未登录或未检查）
 //               若接入自己的账号系统，填入接口地址（需返回 { authenticated, user }）
 // loginUrl      登录页地址，仅当 authCheckUrl 非空时生效
 const UNO_CONFIG = {
-  server: 'wss://ws.uno.mobaixingyao.dpdns.org/ws',
+  server: 'wss://uno.mobaixingyao.dpdns.org/ws',
   authCheckUrl: '',
   loginUrl: '/login'
 };

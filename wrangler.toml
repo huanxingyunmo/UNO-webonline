@@ -1,0 +1,22 @@
+name = "uno-game"
+main = "src/index.js"
+account_id = "54dee5b3dea6fa427a09d5a6f4c77981"
+compatibility_date = "2026-03-28"
+
+# 静态资源目录（前端）
+# 默认 not_found_handling="none"：未匹配静态文件的请求（如 /ws WebSocket）会交由 Worker 处理
+assets = { directory = "./public", not_found_handling = "none" }
+
+# 自定义域名（必须放在 migrations 之前，否则会被误并入 migrations 表）
+routes = [
+  { pattern = "uno.mobaixingyao.dpdns.org", custom_domain = true }
+]
+
+# UNO 游戏房间（Durable Object，保存对局状态）
+[[durable_objects.bindings]]
+name = "UNO_ROOM"
+class_name = "UnoRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UnoRoom"]
