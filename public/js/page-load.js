@@ -20,8 +20,13 @@
 (function () {
     var docEl = document.documentElement;
 
-    // ---------- 复用 head 内联创建的进度条 ----------
-    var bar = document.getElementById('page-loading-bar');
+    // ---------- 接管 HTML 里的进度条骨架 ----------
+    // 重要：本脚本在 <head> 中同步执行，此时 <body> 里的骨架还没被解析到，
+    // getElementById 一定返回 null。所以这里**绝不能**创建兜底元素——
+    // 那会产生第二个进度条（HTML 里那个永远是 0%，成为静止的死元素），
+    // 而且新元素会被挂到 <html> 下，正是要避免的位置。
+    // 改为延迟接管：骨架一出现在 DOM 里就接过来用。
+    var bar = null;
 
     function ensureStyle() {
         if (document.getElementById('page-loading-style')) return;
@@ -36,24 +41,23 @@
         (document.head || docEl).appendChild(style);
     }
 
-    // 兜底：极端情况下（骨架被某些优化手段剥离）重建
-    if (!bar || !bar.isConnected) {
+    // 接管骨架；仅当 HTML 里确实没有时才创建兜底元素（一律挂 body）
+    function resolveBar() {
+        if (bar && bar.isConnected) return bar;
+        var found = document.getElementById('page-loading-bar');
+        if (!found) return null;   // 骨架尚未解析到，等下一帧再试
+        bar = found;
+        if (document.body && bar.parentNode !== document.body) {
+            document.body.appendChild(bar);   // 移回 body，脱离解析器管辖
+        }
         ensureStyle();
-        bar = document.createElement('div');
-        bar.className = 'page-loading-bar';
-        bar.id = 'page-loading-bar';
-        (document.body || docEl).appendChild(bar);
-    } else {
-        ensureStyle();
+        return bar;
     }
-    // 立刻把骨架挂到 body，脱离 <html> 直接子节点（解析器会动它）
-    if (document.body && bar.parentNode !== document.body) {
-        document.body.appendChild(bar);
-    }
-    bar.style.width = '0%';
+
+    resolveBar();
 
     // ---------- 进度模型 ----------
-    var START = 4;        // 起始进度（视觉上确实从很小开始）
+    var START = 0;        // 严格从 0% 开始，不做任何起点偏移
     var CAP = 92;         // 资源未完成时的上限，留出「最后一段」
     var MIN_SHOW = 700;   // 进度条最短展示时长(ms)，避免一闪而过
     var EPS = 0.05;       // 缓动停止阈值
@@ -79,11 +83,11 @@
     }
 
     // 时间维度保底：随时间缓慢推进（最多到 CAP），保证「有资源没触发事件」时也在走。
-    // 用 easeOut 曲线：前期慢（视觉上真的从很小开始爬），后期快，
-    // 避免一上来就冲到十几二十个百分点。
+    // easeOut 曲线，起步段刻意压得很慢：头几帧停在 0% 附近，
+    // 让进度条真的是「从最左端长出来」，而不是一上来就有一截。
     function timeProgress() {
         var elapsed = now() - t0;
-        var p = Math.min(1, elapsed / 3000);
+        var p = Math.min(1, elapsed / 5000);
         var eased = 1 - Math.pow(1 - p, 2.2);   // easeOutQuad-ish
         return START + (CAP - START) * eased * 0.85;
     }
@@ -99,37 +103,49 @@
     // 这样即使 rAF 被浏览器节流/合并（帧间隔变大），视觉推进速度也保持一致。
     var rafId = null;
     var lastTs = 0;
-    var MAX_RATE = 45;   // 每秒最多推进的百分点（约 1.8%/帧@40fps），限制任何跳变
+    var MAX_RATE = 45;   // 每秒最多推进的百分点，限制整体推进速度
+    var MAX_STEP = 2;    // 单帧最多推进的百分点，帧率抖动时也绝不跳变
 
     function tick(ts) {
-        var dt = lastTs ? Math.min(120, ts - lastTs) : 16;   // 帧间隔(ms)，上限 120 防跳
+        var dt = lastTs ? Math.min(120, ts - lastTs) : 16;   // 帧间隔(ms)，上限 120
         lastTs = ts;
 
         if (finished) target = 100;   // 收尾时统一把目标推到 100
 
+        // 进度模型照常推进（与骨架是否已出现无关，避免丢掉早期进度）
         var diff = target - shown;
         if (diff > EPS) {
-            // 指数逼近 + 速度上限，二者取小
-            var step = Math.min(diff * 0.16, (MAX_RATE * dt) / 1000);
+            // 三重取小：指数逼近 / 每秒速率上限 / 单帧位移上限。
+            // 单帧上限是必需的：headless 与后台标签页下 rAF 帧间隔会突然拉到 100ms+，
+            // 只按 dt 算步长会让单帧位移放大到 5%+，肉眼就是一次跳变。
+            var step = Math.min(diff * 0.16, (MAX_RATE * dt) / 1000, MAX_STEP);
             if (step < 0.02) step = Math.min(diff, 0.02);
             shown += step;
             if (shown > target) shown = target;
         }
-        bar.style.width = shown.toFixed(2) + '%';
+
+        // 骨架刚被解析出来时接管（head 执行阶段必然取不到）
+        if (!bar) resolveBar();
+        if (bar) bar.style.width = shown.toFixed(2) + '%';
 
         if (!finished) {
             rafId = requestAnimationFrame(tick);
+        } else if (!bar) {
+            rafId = null;   // 没有骨架可收尾（极罕见），直接结束，避免空转
+            try { applyFadeIn(); } catch (e) {}
+            return;
         } else if (shown >= 100 - EPS) {
-            // 已到 100，执行清理
+            rafId = null;
             bar.style.width = '100%';
-            applyFadeIn();
+            // 先注册移除流程，再做可选的淡入增强：
+            // 万一 applyFadeIn 抛异常，也绝不能把进度条永久留在页面上。
             setTimeout(function () {
                 bar.style.opacity = '0';
                 setTimeout(function () {
                     if (bar.parentNode) bar.parentNode.removeChild(bar);
                 }, 360);
             }, 120);
-            rafId = null;
+            try { applyFadeIn(); } catch (e) {}
             return;
         } else {
             rafId = requestAnimationFrame(tick);
