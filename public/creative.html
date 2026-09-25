@@ -4,15 +4,23 @@
     <script src="js/theme-preinit.js?v=1"></script>
     <link rel="stylesheet" href="css/theme-light.css?v=4">
     <link rel="stylesheet" href="css/theme-dark.css?v=7">
+    <!-- 进度条骨架内联：<body> 首个子节点，HTML 解析到即渲染，零延迟可见。
+         注意：不能 appendChild 到 documentElement（<html> 下的非 head/body 子节点
+         会被解析器移除重挂，导致进度条中途重置）。 -->
+    <style>
+        .page-loading-bar{position:fixed;top:0;left:0;width:0;height:3px;background:linear-gradient(90deg,#3a65c2,#6b8fd8,#3a65c2);background-size:200% 100%;z-index:2147483647;pointer-events:none;box-shadow:0 0 8px rgba(58,101,194,.5);transition:opacity .35s ease-out}
+    </style>
+    <script>window.__loadStart = (window.performance && performance.now) ? performance.now() : Date.now();</script>
+    <script src="js/page-load.js?v=7"></script>
 <meta charset="UTF-8">
-<script src="js/page-load.js?v=6"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UnoLive — 即开即玩的在线多人UNO</title>
 <link rel="icon" type="image/png" href="assets/favicon.jpg">
-<link rel="stylesheet" href="css/common.css?v=10">
-<link rel="stylesheet" href="css/uno-creative.css?v=1">
+<link rel="stylesheet" href="css/common.css?v=11">
+<link rel="stylesheet" href="css/uno-creative.css?v=2">
 </head>
 <body>
+<div class="page-loading-bar" id="page-loading-bar" style="width:0%"></div>
 <div class="beijing"></div>
 <div class="background"></div>
 

@@ -425,7 +425,9 @@ button {
 }
 
 /* -------------------- 页面加载效果 -------------------- */
-/* 顶部进度条 */
+/* 顶部进度条：样式以内联 <style> 为准（见 index.html），此处仅作兜底。
+   关键：transition 只作用于 opacity，宽度必须由 JS 逐帧设置，
+   若给 width 加 transition，多帧连续赋值会被合并成一次跳动。 */
 .page-loading-bar {
     position: fixed;
     top: 0;
@@ -434,40 +436,22 @@ button {
     height: 3px;
     background: linear-gradient(90deg, var(--primary), var(--primary-light), var(--primary));
     background-size: 200% 100%;
-    z-index: 99999;
-    transition: width 0.3s ease;
+    z-index: 2147483647;
+    pointer-events: none;
     box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 50%, transparent);
-}
-
-.page-loading-bar.loading {
-    width: 70%;
-    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-    animation: page-loading-shimmer 1.5s linear infinite;
-}
-
-.page-loading-bar.finishing {
-    width: 100%;
-    transition: width 0.3s ease;
-    animation: none;
+    transition: opacity 0.35s ease-out;
 }
 
 .page-loading-bar.done {
     opacity: 0;
-    transition: opacity 0.4s ease 0.1s;
-    animation: none;
-}
-
-@keyframes page-loading-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    transition: opacity 0.35s ease-out;
 }
 
 /* 内容元素入场/退场动画（统一：opacity 50%→100% + 轻微上移，非线性缓动，≤1s） */
 
-/* 加载阶段立即隐藏 body 下所有主要内容，避免脚本标记前的闪烁 */
-html[data-page-state="loading"] body > :not(.beijing):not(.background):not(.dock-nav):not(.page-loading-bar):not(script):not(style):not(link) {
-    opacity: 0;
-}
+/* 注：页面初始不再做 opacity 预隐藏——HTML 内容本身在首帧即可见，
+   预隐藏依赖后加载的 CSS 覆盖来解除，存在竞态（CSS 未就绪时会白屏），
+   改为内容直接可见 + 进度条收尾时做一次淡入增强。 */
 
 .page-transition-target {
     transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
@@ -514,13 +498,8 @@ html[data-page-state="leaving"] .page-transition-target {
 
 /* -------------------- 减少动画偏好 -------------------- */
 @media (prefers-reduced-motion: reduce) {
-    .page-loading-bar,
-    .page-loading-bar.loading,
-    .page-loading-bar.finishing {
-        animation: none !important;
-        transition: width 0.15s ease !important;
-    }
-
+    /* 注意：不能给 .page-loading-bar 加 width 的 transition，
+       否则 JS 逐帧赋宽会被浏览器合并成一次跳变。 */
     .page-loading-bar.done {
         transition: opacity 0.1s ease !important;
     }
@@ -531,7 +510,6 @@ html[data-page-state="leaving"] .page-transition-target {
         transform: none !important;
     }
 
-    html[data-page-state="loading"] body > :not(.beijing):not(.background):not(.dock-nav):not(.page-loading-bar):not(script):not(style):not(link),
     .page-transition-target,
     html[data-page-state="revealing"] .page-transition-target,
     html[data-page-state="revealing"] .page-transition-target.is-revealed,
