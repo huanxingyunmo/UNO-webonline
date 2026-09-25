@@ -1,248 +1,155 @@
-/* =====================================================
-   页面加载效果 —— 真实进度条 + 内容淡入
-   在页面 <head> 中引入（进度条骨架已在 head 内联，见 index.html / creative.html）
+/* ============================================================================
+   顶部加载进度条
+   ----------------------------------------------------------------------------
+   两条铁律（这就是本文件存在的全部理由）：
+     1) 进度满 100%  ⇔  页面真的加载完（window.load 触发）—— 绝不提前走完
+     2) load 一旦触发，进度条立即结束 —— 绝不在页面就绪后还继续移动
 
-   设计要点（针对「首次打开慢」「进度条直接跳到 60-70%」两个问题）：
-   1) 进度由真实资源完成事件驱动，但**逐帧平滑推进**：
-      buffered 的 PerformanceObserver 会把已经完成的资源一次性回放，
-      直接 setWidth 会导致首帧就从起点跳到 70%+。
-      因此所有权重变化只更新「目标值」，由唯一一个 rAF 驱动带缓动逼近，
-      并限制「每秒最大推进速度」，保证任何时刻视觉进度都连续递增。
-      注意：全局只能有一个函数写 bar.style.width，多路 rAF 并发写会互相
-      覆盖导致跳变（曾出现单帧 +12%~26% 的跳变）。
-   2) 骨架挂在 <body> 上（而非 documentElement），避免 HTML 解析器
-      对 <html> 下非 head/body 子节点的移除重挂行为导致进度条重置。
-   3) 揭幕时机取 max(首屏内容可用, 最短展示时长)，既不让用户干等，
-      也不会出现「进度条一闪而过」的割裂感。
-   4) 三重兜底：DOMContentLoaded / window.load / 5s 定时，
-      任一触发即收尾，任何异常都不会让用户永远卡在加载态。
-   ===================================================== */
+   进度从哪来（不猜、不匀速自爬）：
+     分子 = 已完成的真实资源数（PerformanceObserver 上报，按 URL 去重）
+     分母 = HTML 里声明的资源数（DOM 就绪时枚举，此时 HTML 已解析完，清单确定）
+     DOM 就绪前分母未知，只按已完成数小幅推进（最多 15%）。
+     另保留一个极慢的「蠕动」（0.8% / 秒）避免长时间静止，
+     但它永远无法把进度推到 100% —— 收尾只能由 load 事件触发。
+
+   元素从哪来：
+     骨架写在 HTML 的 <body> 首个子节点，解析到即渲染（零延迟、从 0% 起）。
+     本脚本在 <head> 同步执行时取不到它，所以只在能取到时接管，绝不主动创建
+     —— 否则会出现两个进度条（后建的那个还会被挂到 <html> 下，被解析器搬走）。
+     页面确实漏加骨架时，等 DOM 就绪后再补一个（那时 body 一定存在，安全）。
+   ============================================================================ */
 (function () {
-    var docEl = document.documentElement;
+    'use strict';
 
-    // ---------- 接管 HTML 里的进度条骨架 ----------
-    // 重要：本脚本在 <head> 中同步执行，此时 <body> 里的骨架还没被解析到，
-    // getElementById 一定返回 null。所以这里**绝不能**创建兜底元素——
-    // 那会产生第二个进度条（HTML 里那个永远是 0%，成为静止的死元素），
-    // 而且新元素会被挂到 <html> 下，正是要避免的位置。
-    // 改为延迟接管：骨架一出现在 DOM 里就接过来用。
+    var SAFETY_MS = 8000;   // 兜底：这么久仍未 load 就收尾（防某个请求永久挂起）
+    var CREEP_PPS = 0.8;    // 停滞蠕动速度（百分点/秒），封顶 99%
+
     var bar = null;
+    var shown = 0;          // 当前显示值
+    var target = 0;         // 目标值
+    var doneCount = 0;      // 已完成资源数
+    var totalCount = 0;     // 声明资源数（DOM 就绪后确定）
+    var seen = {};          // 资源 URL 去重
+    var domReady = false;
+    var ended = false;
+    var startedAt = ms();
 
-    function ensureStyle() {
-        if (document.getElementById('page-loading-style')) return;
-        var style = document.createElement('style');
-        style.id = 'page-loading-style';
-        style.textContent =
-            '.page-loading-bar{position:fixed;top:0;left:0;width:0;height:3px;' +
-            'background:linear-gradient(90deg,#3a65c2,#6b8fd8,#3a65c2);background-size:200% 100%;' +
-            'z-index:2147483647;pointer-events:none;' +
-            'box-shadow:0 0 8px rgba(58,101,194,.5);' +
-            'transition:opacity .35s ease-out}';
-        (document.head || docEl).appendChild(style);
-    }
-
-    // 接管骨架；仅当 HTML 里确实没有时才创建兜底元素（一律挂 body）
-    function resolveBar() {
-        if (bar && bar.isConnected) return bar;
-        var found = document.getElementById('page-loading-bar');
-        if (!found) return null;   // 骨架尚未解析到，等下一帧再试
-        bar = found;
-        if (document.body && bar.parentNode !== document.body) {
-            document.body.appendChild(bar);   // 移回 body，脱离解析器管辖
-        }
-        ensureStyle();
-        return bar;
-    }
-
-    resolveBar();
-
-    // ---------- 进度模型 ----------
-    var START = 0;        // 严格从 0% 开始，不做任何起点偏移
-    var CAP = 92;         // 资源未完成时的上限，留出「最后一段」
-    var MIN_SHOW = 700;   // 进度条最短展示时长(ms)，避免一闪而过
-    var EPS = 0.05;       // 缓动停止阈值
-
-    var doneWeight = 0;   // 已完成资源权重（真实）
-    // 预估总权重：故意取大一些。buffered 回放会把「脚本执行前已完成的资源」
-    // 一次性加进来，若 guessTotal 偏小，目标值会在第一帧就冲到 CAP，
-    // rAF 即便限速也会表现为一次明显的起跳。取大值让进度均匀铺开。
-    var guessTotal = 130;
-    var shown = START;    // 当前视觉进度
-    var target = START;   // 目标进度
-    var fontCounted = false;
-    var finished = false;
-    var t0 = (typeof window.__loadStart === 'number') ? window.__loadStart : (window.performance && performance.now ? performance.now() : Date.now());
-
-    function now() {
+    function ms() {
         return (window.performance && performance.now) ? performance.now() : Date.now();
     }
 
-    function resourceProgress() {
-        var ratio = Math.min(1, doneWeight / guessTotal);
-        return START + (CAP - START) * ratio;
+    // ---------- 进度条元素 ----------
+    function pickBar() {
+        if (bar && bar.isConnected) return bar;
+        bar = document.getElementById('page-loading-bar');
+        return bar;
     }
 
-    // 时间维度保底：随时间缓慢推进（最多到 CAP），保证「有资源没触发事件」时也在走。
-    // easeOut 曲线，起步段刻意压得很慢：头几帧停在 0% 附近，
-    // 让进度条真的是「从最左端长出来」，而不是一上来就有一截。
-    function timeProgress() {
-        var elapsed = now() - t0;
-        var p = Math.min(1, elapsed / 5000);
-        var eased = 1 - Math.pow(1 - p, 2.2);   // easeOutQuad-ish
-        return START + (CAP - START) * eased * 0.85;
+    // 仅当页面确实漏加骨架时调用（DOM 就绪后 body 一定存在，此时创建是安全的）
+    function ensureBar() {
+        if (pickBar()) return bar;
+        bar = document.createElement('div');
+        bar.className = 'page-loading-bar';
+        bar.id = 'page-loading-bar';
+        bar.style.width = '0%';
+        document.body.appendChild(bar);
+        return bar;
     }
 
-    function updateTarget() {
-        target = Math.max(resourceProgress(), timeProgress());
-        if (target > CAP) target = CAP;
+    // ---------- 进度计算 ----------
+    function countDeclared() {
+        var n = document.querySelectorAll('link[rel="stylesheet"]').length
+              + document.querySelectorAll('script[src]').length
+              + document.querySelectorAll('img[src]').length
+              + document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').length;
+        return n > 0 ? n : 1;
     }
 
-    // ---------- 单一 rAF 驱动：平滑逼近 + 收尾补完 ----------
-    // 关键：只有这一个函数写 bar.style.width，避免多路 rAF 并发写导致跳变。
-    // 每帧按时间差计算步长（而非「每帧固定步长」），
-    // 这样即使 rAF 被浏览器节流/合并（帧间隔变大），视觉推进速度也保持一致。
-    var rafId = null;
-    var lastTs = 0;
-    var MAX_RATE = 45;   // 每秒最多推进的百分点，限制整体推进速度
-    var MAX_STEP = 2;    // 单帧最多推进的百分点，帧率抖动时也绝不跳变
+    function calcTarget() {
+        if (ended) return 100;                       // 铁律 1：只有 load 之后才可能到 100
+        var denom = totalCount > 0 ? totalCount : 8;
+        var ratio = Math.min(1, doneCount / denom);
+        var real = (domReady ? 15 : 0) + (domReady ? 84 : 15) * ratio;
+        var creep = ((ms() - startedAt) / 1000) * CREEP_PPS;
+        if (creep > real) real = creep;              // 蠕动保底，避免长时间完全静止
+        return real > 99 ? 99 : real;                // 铁律 1：封顶 99%
+    }
 
-    function tick(ts) {
-        var dt = lastTs ? Math.min(120, ts - lastTs) : 16;   // 帧间隔(ms)，上限 120
-        lastTs = ts;
-
-        if (finished) target = 100;   // 收尾时统一把目标推到 100
-
-        // 进度模型照常推进（与骨架是否已出现无关，避免丢掉早期进度）
-        var diff = target - shown;
-        if (diff > EPS) {
-            // 三重取小：指数逼近 / 每秒速率上限 / 单帧位移上限。
-            // 单帧上限是必需的：headless 与后台标签页下 rAF 帧间隔会突然拉到 100ms+，
-            // 只按 dt 算步长会让单帧位移放大到 5%+，肉眼就是一次跳变。
-            var step = Math.min(diff * 0.16, (MAX_RATE * dt) / 1000, MAX_STEP);
-            if (step < 0.02) step = Math.min(diff, 0.02);
-            shown += step;
-            if (shown > target) shown = target;
-        }
-
-        // 骨架刚被解析出来时接管（head 执行阶段必然取不到）
-        if (!bar) resolveBar();
-        if (bar) bar.style.width = shown.toFixed(2) + '%';
-
-        if (!finished) {
-            rafId = requestAnimationFrame(tick);
-        } else if (!bar) {
-            rafId = null;   // 没有骨架可收尾（极罕见），直接结束，避免空转
-            try { applyFadeIn(); } catch (e) {}
+    // ---------- 逐帧推进（全局唯一写 width 的地方） ----------
+    function tick() {
+        if (!pickBar()) {
+            if (ended) return;                       // 已收尾且元素不在，结束
+            requestAnimationFrame(tick);
             return;
-        } else if (shown >= 100 - EPS) {
-            rafId = null;
+        }
+        if (ended) {
+            // 收尾：用 CSS transition 一次性补到 100%。
+            // 不用 rAF 逐帧爬 —— 低帧率下那要十几帧、拖几百毫秒，
+            // 表现就是用户说的「页面已经好了，进度条还在动」。
+            bar.style.transition = 'width .15s ease-out, opacity .3s ease-out';
             bar.style.width = '100%';
-            // 先注册移除流程，再做可选的淡入增强：
-            // 万一 applyFadeIn 抛异常，也绝不能把进度条永久留在页面上。
             setTimeout(function () {
                 bar.style.opacity = '0';
                 setTimeout(function () {
-                    if (bar.parentNode) bar.parentNode.removeChild(bar);
-                }, 360);
-            }, 120);
-            try { applyFadeIn(); } catch (e) {}
-            return;
-        } else {
-            rafId = requestAnimationFrame(tick);
+                    if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+                }, 300);
+            }, 170);
+            return;                                  // 收尾完成，不再排帧
         }
+        target = calcTarget();
+        var diff = target - shown;
+        if (diff > 0.02) {
+            shown += Math.min(diff * 0.2, 3);        // 只前进
+            if (shown > target) shown = target;
+            bar.style.width = shown.toFixed(1) + '%';
+        }
+        requestAnimationFrame(tick);
     }
 
-    if (window.requestAnimationFrame) {
-        rafId = requestAnimationFrame(tick);
-    } else {
-        setInterval(function () { tick(performance.now ? performance.now() : Date.now()); }, 16);
+    // ---------- 收尾：只置标志，补完到 100% 交给 tick ----------
+    function end() {
+        ended = true;
     }
 
-    // 兜底爬升器：即使没有任何资源事件，也让 target 持续上升
-    var crawler = setInterval(function () {
-        if (finished) { clearInterval(crawler); return; }
-        updateTarget();
-    }, 120);
-
-    // ---------- 真实资源完成事件 ----------
-    var WEIGHT = { font: 26, script: 11, css: 11, img: 4, other: 3 };
-
-    function classify(name, initiatorType) {
-        if (/\.(woff2?|ttf|otf)(\?|$)/i.test(name)) return 'font';
-        if (/\.js(\?|$)/i.test(name) || initiatorType === 'script') return 'script';
-        if (/\.css(\?|$)/i.test(name) || initiatorType === 'link') return 'css';
-        if (/\.(png|jpe?g|gif|webp|svg|avif|ico)(\?|$)/i.test(name) || initiatorType === 'img') return 'img';
-        return 'other';
-    }
-
+    // ---------- 资源完成计数 ----------
     try {
-        var po = new PerformanceObserver(function (list) {
-            var entries = list.getEntries();
-            for (var i = 0; i < entries.length; i++) {
-                var e = entries[i];
-                if (e.initiatorType === 'fetch' || e.initiatorType === 'xmlhttprequest') continue; // 业务异步请求不计入
-                var kind = classify(e.name, e.initiatorType);
-                if (kind === 'font') {
-                    if (fontCounted) continue;
-                    fontCounted = true;
-                }
-                doneWeight += WEIGHT[kind] || WEIGHT.other;
-                if (doneWeight > guessTotal * 0.8) guessTotal += 30;
+        new PerformanceObserver(function (list) {
+            var es = list.getEntries();
+            for (var i = 0; i < es.length; i++) {
+                var e = es[i];
+                // 业务异步请求（接口取数）不算页面加载进度
+                if (e.initiatorType === 'fetch' || e.initiatorType === 'xmlhttprequest') continue;
+                if (seen[e.name]) continue;
+                seen[e.name] = 1;
+                doneCount++;
+                // 动态插入的资源（JS 渲染出的图片等）会让分子超出原分母，分母跟着涨
+                if (doneCount > totalCount) totalCount = doneCount;
             }
-            updateTarget();   // 只更新目标值，由 rAF 平滑逼近
-        });
-        po.observe({ type: 'resource', buffered: true });
-    } catch (err) {
-        /* 极老环境：仅依赖 timeProgress 兜底 */
+        }).observe({ type: 'resource', buffered: true });
+    } catch (err) { /* 老浏览器：仅靠蠕动推进 */ }
+
+    // ---------- 生命周期 ----------
+    function onReady() {
+        if (domReady) return;
+        domReady = true;
+        ensureBar();
+        var declared = countDeclared();
+        totalCount = declared > doneCount ? declared : doneCount;
     }
 
-    // ---------- 内容淡入（可选增强，失败不影响可见性） ----------
-    var skipSel = ['.beijing', '.background', '.dock-nav', '.page-loading-bar', '.articlelist', 'script', 'style', 'link'];
-    function applyFadeIn() {
-        if (!document.body) return;
-        var children = document.body.children;
-        var added = [];
-        for (var i = 0; i < children.length; i++) {
-            var el = children[i];
-            if (el.nodeType !== 1 || el === bar) continue;
-            var skipIt = false;
-            for (var j = 0; j < skipSel.length; j++) {
-                if (el.matches && el.matches(skipSel[j])) { skipIt = true; break; }
-            }
-            if (skipIt) continue;
-            if (window.getComputedStyle(el).display === 'none') continue;
-            el.classList.add('page-fadein');
-            added.push(el);
-        }
-        setTimeout(function () {
-            for (var k = 0; k < added.length; k++) added[k].classList.remove('page-fadein');
-        }, 700);
-    }
-
-    // ---------- 收尾 ----------
-    function finish() {
-        if (finished) return;
-        var elapsed = now() - t0;
-        // 保证进度条有最短展示时长，避免「一闪而过」
-        if (elapsed < MIN_SHOW) {
-            setTimeout(finish, MIN_SHOW - elapsed + 20);
-            return;
-        }
-        // 只置标志位 + 清掉爬升器；宽度由唯一的 rAF 驱动平滑补完到 100%
-        finished = true;
-        clearInterval(crawler);
-        target = 100;
-    }
-
-    // DOM 就绪即可收尾（不等 window.load：字体等重资源可能慢，避免卡加载）
-    function scheduleFinish() { setTimeout(finish, 60); }
-
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        scheduleFinish();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', onReady);
     } else {
-        document.addEventListener('DOMContentLoaded', scheduleFinish);
+        onReady();
     }
 
-    window.addEventListener('load', finish);   // 资源全好则提前收尾
-    setTimeout(finish, 5000);                  // 硬兜底，绝不卡死
+    // 铁律 2：这是唯一的正常收尾入口
+    if (document.readyState === 'complete') {
+        end();
+    } else {
+        window.addEventListener('load', end);
+    }
+    setTimeout(end, SAFETY_MS);                      // 兜底，绝不永久卡住
+
+    requestAnimationFrame(tick);
 })();
